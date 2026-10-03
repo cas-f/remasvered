@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RectangleShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -99,8 +97,10 @@ fun GlassPlaygroundContent() {
                             ShapeType.RoundedRect -> RoundedRectangle(
                                 currentSettings.widthDp.dp / 2f * currentSettings.cornerRadiusFrac
                             )
-                            ShapeType.Circle -> CircleShape
-                            ShapeType.Square -> RectangleShape
+                            ShapeType.Circle -> RoundedRectangle(
+                                minOf(currentSettings.widthDp, currentSettings.heightDp).dp / 2f
+                            )
+                            ShapeType.Square -> RoundedRectangle(0f.dp)
                             ShapeType.Pill -> RoundedRectangle(currentSettings.heightDp.dp / 2f)
                         }
                     },
@@ -135,7 +135,7 @@ fun GlassPlaygroundContent() {
                         return Offset((x * cos - y * sin).toFloat(), (x * sin + y * cos).toFloat())
                     }
 
-                    detectTransformGestures { centroid, pan, gestureZoom, gestureRotate ->
+                    detectTransformGestures { _, pan, gestureZoom, gestureRotate ->
                         val offset = offsetAnimation.value
                         val zoom = zoomAnimation.value
                         val rotation = rotationAnimation.value
@@ -180,7 +180,6 @@ fun GlassPlaygroundContent() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12f.dp)
                 ) {
-                    // Shape selector
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(6f.dp),
