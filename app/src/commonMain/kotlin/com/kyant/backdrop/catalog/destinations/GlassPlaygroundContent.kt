@@ -2,6 +2,8 @@ package com.kyant.backdrop.catalog.destinations
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +17,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,6 +49,9 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 enum class ShapeType(val label: String) {
     RoundedRect("Rounded"),
@@ -65,7 +70,11 @@ data class ShapeSettings(
     val refractionHeightFrac: Float = 0.2f,
     val refractionAmountFrac: Float = 0.2f,
     val chromaticAberration: Float = 0f
-)
+) {
+    companion object {
+        val Default = ShapeSettings()
+    }
+}
 
 @Composable
 fun GlassPlaygroundContent() {
@@ -76,13 +85,26 @@ fun GlassPlaygroundContent() {
 
     var isSheetExpanded by remember { mutableStateOf(true) }
 
+    val timeSource = remember { TimeSource.Monotonic }
+    var lastTapMark by remember { mutableStateOf<TimeMark?>(null) }
+
     var shapeType by remember { mutableStateOf(ShapeType.RoundedRect) }
     val settingsMap = remember { mutableStateMapOf<ShapeType, ShapeSettings>() }
-    val currentSettings = settingsMap[shapeType] ?: ShapeSettings()
+    val currentSettings = settingsMap[shapeType] ?: ShapeSettings.Default
 
     fun updateSettings(transform: (ShapeSettings) -> ShapeSettings) {
-        val current = settingsMap[shapeType] ?: ShapeSettings()
+        val current = settingsMap[shapeType] ?: ShapeSettings.Default
         settingsMap[shapeType] = transform(current)
+    }
+
+    fun resetCurrentShape() {
+        settingsMap.remove(shapeType)
+        settingsMap[shapeType] = ShapeSettings.Default
+        animationScope.launch {
+            launch { offsetAnimation.animateTo(Offset.Zero) }
+            launch { zoomAnimation.animateTo(1f) }
+            launch { rotationAnimation.animateTo(0f) }
+        }
     }
 
     BackdropDemoScaffold { backdrop ->
@@ -130,9 +152,9 @@ fun GlassPlaygroundContent() {
                 .pointerInput(animationScope) {
                     fun Offset.rotateBy(angle: Float): Offset {
                         val angleInRadians = angle * (PI / 180)
-                        val cos = cos(angleInRadians)
-                        val sin = sin(angleInRadians)
-                        return Offset((x * cos - y * sin).toFloat(), (x * sin + y * cos).toFloat())
+                        val c = cos(angleInRadians)
+                        val s = sin(angleInRadians)
+                        return Offset((x * c - y * s).toFloat(), (x * s + y * c).toFloat())
                     }
 
                     detectTransformGestures { _, pan, gestureZoom, gestureRotate ->
@@ -161,7 +183,6 @@ fun GlassPlaygroundContent() {
                 Column(
                     Modifier
                         .padding(16f.dp)
-                        .padding(bottom = 72f.dp)
                         .navigationBarsPadding()
                         .drawBackdrop(
                             backdrop = backdrop,
@@ -175,190 +196,187 @@ fun GlassPlaygroundContent() {
                             exportedBackdrop = sheetBackdrop,
                             onDrawSurface = { drawRect(Color.White.copy(alpha = 0.5f)) }
                         )
-                        .padding(24f.dp)
+                        .padding(16f.dp)
                         .align(Alignment.BottomCenter),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12f.dp)
+                    verticalArrangement = Arrangement.spacedBy(8f.dp)
                 ) {
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6f.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4f.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         ShapeType.values().forEach { type ->
                             Box(Modifier.weight(1f)) {
-                                LiquidButton(
-                                    { shapeType = type },
-                                    sheetBackdrop,
-                                    Modifier.fillMaxWidth(),
-                                    tint = if (shapeType == type) Color(0xFFFF8D28) else Color.Gray
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedRectangle(12f.dp))
+                                        .background(
+                                            if (shapeType == type) Color(0xFFFF8D28)
+                                            else Color(0x55000000)
+                                        )
+                                        .clickable { shapeType = type }
+                                        .padding(vertical = 8f.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    BasicText(
-                                        type.label,
-                                        style = TextStyle(Color.White, 12f.sp)
-                                    )
+                                    BasicText(type.label, style = TextStyle(Color.White, 11f.sp))
                                 }
                             }
                         }
                     }
 
-                    ControlRow(
-                        label = "Pos X",
-                        value = currentSettings.posX,
-                        onValueChange = { v -> updateSettings { it.copy(posX = v) } },
-                        valueRange = -500f..500f,
-                        step = 5f,
-                        visibilityThreshold = 0.1f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Pos Y",
-                        value = currentSettings.posY,
-                        onValueChange = { v -> updateSettings { it.copy(posY = v) } },
-                        valueRange = -500f..500f,
-                        step = 5f,
-                        visibilityThreshold = 0.1f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Width",
-                        value = currentSettings.widthDp,
-                        onValueChange = { v -> updateSettings { it.copy(widthDp = v) } },
-                        valueRange = 32f..600f,
-                        step = 4f,
-                        visibilityThreshold = 0.1f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Height",
-                        value = currentSettings.heightDp,
-                        onValueChange = { v -> updateSettings { it.copy(heightDp = v) } },
-                        valueRange = 32f..600f,
-                        step = 4f,
-                        visibilityThreshold = 0.1f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Corner radius",
-                        value = currentSettings.cornerRadiusFrac,
-                        onValueChange = { v -> updateSettings { it.copy(cornerRadiusFrac = v) } },
-                        valueRange = 0f..1f,
-                        step = 0.05f,
-                        visibilityThreshold = 0.001f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Blur radius",
-                        value = currentSettings.blurRadiusDp,
-                        onValueChange = { v -> updateSettings { it.copy(blurRadiusDp = v) } },
-                        valueRange = 0f..32f,
-                        step = 1f,
-                        visibilityThreshold = 0.01f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Refraction height",
-                        value = currentSettings.refractionHeightFrac,
-                        onValueChange = { v -> updateSettings { it.copy(refractionHeightFrac = v) } },
-                        valueRange = 0f..1f,
-                        step = 0.05f,
-                        visibilityThreshold = 0.001f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Refraction amount",
-                        value = currentSettings.refractionAmountFrac,
-                        onValueChange = { v -> updateSettings { it.copy(refractionAmountFrac = v) } },
-                        valueRange = 0f..1f,
-                        step = 0.05f,
-                        visibilityThreshold = 0.001f,
-                        backdrop = sheetBackdrop
-                    )
-                    ControlRow(
-                        label = "Chromatic aberration",
-                        value = currentSettings.chromaticAberration,
-                        onValueChange = { v -> updateSettings { it.copy(chromaticAberration = v) } },
-                        valueRange = 0f..1f,
-                        step = 0.05f,
-                        visibilityThreshold = 0.001f,
-                        backdrop = sheetBackdrop
-                    )
-                }
-            }
-        }
-
-        Block {
-            LiquidButton(
-                { isSheetExpanded = !isSheetExpanded },
-                backdrop,
-                Modifier
-                    .padding(20f.dp)
-                    .navigationBarsPadding()
-                    .align(Alignment.BottomStart),
-                tint = Color(0xFFFF8D28)
-            ) {
-                BasicText(
-                    if (isSheetExpanded) "🔽" else "🔼",
-                    style = TextStyle(Color.White, 15f.sp)
-                )
-            }
-
-            LiquidButton(
-                {
-                    animationScope.launch {
-                        launch { offsetAnimation.animateTo(Offset.Zero) }
-                        launch { zoomAnimation.animateTo(1f) }
-                        launch { rotationAnimation.animateTo(0f) }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8f.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            CompactControl("Pos X", currentSettings.posX,
+                                { v -> updateSettings { it.copy(posX = v) } },
+                                -500f..500f, 5f, 0.1f, ShapeSettings.Default.posX, sheetBackdrop)
+                        }
+                        Box(Modifier.weight(1f)) {
+                            CompactControl("Pos Y", currentSettings.posY,
+                                { v -> updateSettings { it.copy(posY = v) } },
+                                -500f..500f, 5f, 0.1f, ShapeSettings.Default.posY, sheetBackdrop)
+                        }
                     }
-                    settingsMap[shapeType] = ShapeSettings()
-                },
-                backdrop,
-                Modifier
-                    .padding(20f.dp)
-                    .navigationBarsPadding()
-                    .align(Alignment.BottomEnd),
-                tint = Color(0xFFFF8D28)
-            ) {
-                BasicText(
-                    "Reset",
-                    style = TextStyle(Color.White, 15f.sp)
-                )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8f.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            CompactControl("Width", currentSettings.widthDp,
+                                { v -> updateSettings { it.copy(widthDp = v) } },
+                                32f..600f, 4f, 0.1f, ShapeSettings.Default.widthDp, sheetBackdrop)
+                        }
+                        Box(Modifier.weight(1f)) {
+                            CompactControl("Height", currentSettings.heightDp,
+                                { v -> updateSettings { it.copy(heightDp = v) } },
+                                32f..600f, 4f, 0.1f, ShapeSettings.Default.heightDp, sheetBackdrop)
+                        }
+                    }
+                    CompactControl("Corner radius", currentSettings.cornerRadiusFrac,
+                        { v -> updateSettings { it.copy(cornerRadiusFrac = v) } },
+                        0f..1f, 0.05f, 0.001f, ShapeSettings.Default.cornerRadiusFrac, sheetBackdrop)
+                    CompactControl("Blur radius", currentSettings.blurRadiusDp,
+                        { v -> updateSettings { it.copy(blurRadiusDp = v) } },
+                        0f..32f, 1f, 0.01f, ShapeSettings.Default.blurRadiusDp, sheetBackdrop)
+                    CompactControl("Refraction height", currentSettings.refractionHeightFrac,
+                        { v -> updateSettings { it.copy(refractionHeightFrac = v) } },
+                        0f..1f, 0.05f, 0.001f, ShapeSettings.Default.refractionHeightFrac, sheetBackdrop)
+                    CompactControl("Refraction amount", currentSettings.refractionAmountFrac,
+                        { v -> updateSettings { it.copy(refractionAmountFrac = v) } },
+                        0f..1f, 0.05f, 0.001f, ShapeSettings.Default.refractionAmountFrac, sheetBackdrop)
+                    CompactControl("Chromatic aberration", currentSettings.chromaticAberration,
+                        { v -> updateSettings { it.copy(chromaticAberration = v) } },
+                        0f..1f, 0.05f, 0.001f, ShapeSettings.Default.chromaticAberration, sheetBackdrop)
+
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6f.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            FlatButton("Hide", Color(0xFF666666)) { isSheetExpanded = false }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            FlatButton("Image", Color(0xFF2196F3)) { /* TODO pick image */ }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            FlatButton("Reset", Color(0xFFFF8D28)) { resetCurrentShape() }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            FlatButton("🔼", Color(0xFFFF8D28)) { isSheetExpanded = false }
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    Modifier
+                        .padding(20f.dp)
+                        .navigationBarsPadding()
+                        .align(Alignment.BottomCenter)
+                ) {
+                    FlatButton("🔼", Color(0xFFFF8D28)) {
+                        val now = timeSource.markNow()
+                        val first = lastTapMark
+                        if (first != null && (now - first) < 600.milliseconds) {
+                            isSheetExpanded = true
+                            lastTapMark = null
+                        } else {
+                            lastTapMark = now
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ControlRow(
+private fun FlatButton(
+    label: String,
+    color: Color,
+    onClick: () -> Unit
+) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedRectangle(14f.dp))
+            .background(color)
+            .clickable { onClick() }
+            .padding(vertical = 10f.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        BasicText(label, style = TextStyle(Color.White, 12f.sp))
+    }
+}
+
+@Composable
+private fun CompactControl(
     label: String,
     value: Float,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     step: Float,
     visibilityThreshold: Float,
+    defaultValue: Float,
     backdrop: Backdrop
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(6f.dp)) {
+    Column(
+        Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(2f.dp)
+    ) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BasicText(label, style = TextStyle(fontSize = 13f.sp))
-            BasicText(formatValue(value), style = TextStyle(fontSize = 13f.sp))
+            BasicText(label, style = TextStyle(fontSize = 11f.sp))
+            BasicText(
+                formatValue(value),
+                modifier = Modifier
+                    .clip(RoundedRectangle(6f.dp))
+                    .clickable { onValueChange(defaultValue) }
+                    .padding(horizontal = 4f.dp, vertical = 1f.dp),
+                style = TextStyle(fontSize = 11f.sp)
+            )
         }
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8f.dp),
+            horizontalArrangement = Arrangement.spacedBy(4f.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            LiquidButton(
-                { onValueChange((value - step).coerceIn(valueRange)) },
-                backdrop,
-                Modifier.size(36f.dp),
-                tint = Color(0xFFFF8D28)
+            Box(
+                Modifier
+                    .size(26f.dp)
+                    .clip(RoundedRectangle(13f.dp))
+                    .background(Color(0x55000000))
+                    .clickable { onValueChange((value - step).coerceIn(valueRange)) },
+                contentAlignment = Alignment.Center
             ) {
-                BasicText("−", style = TextStyle(Color.White, 18f.sp))
+                BasicText("−", style = TextStyle(Color.White, 16f.sp))
             }
             Box(Modifier.weight(1f)) {
                 LiquidSlider(
@@ -369,13 +387,15 @@ private fun ControlRow(
                     backdrop = backdrop
                 )
             }
-            LiquidButton(
-                { onValueChange((value + step).coerceIn(valueRange)) },
-                backdrop,
-                Modifier.size(36f.dp),
-                tint = Color(0xFFFF8D28)
+            Box(
+                Modifier
+                    .size(26f.dp)
+                    .clip(RoundedRectangle(13f.dp))
+                    .background(Color(0x55000000))
+                    .clickable { onValueChange((value + step).coerceIn(valueRange)) },
+                contentAlignment = Alignment.Center
             ) {
-                BasicText("+", style = TextStyle(Color.White, 18f.sp))
+                BasicText("+", style = TextStyle(Color.White, 16f.sp))
             }
         }
     }
