@@ -47,9 +47,6 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 
 enum class ShapeType(val label: String) {
     RoundedRect("Round"),
@@ -82,8 +79,7 @@ fun GlassPlaygroundContent() {
     val rotationAnimation = remember { Animatable(0f) }
 
     var isSheetExpanded by remember { mutableStateOf(true) }
-    val timeSource = remember { TimeSource.Monotonic }
-    var lastTapMark by remember { mutableStateOf<TimeMark?>(null) }
+    var lastTapMillis by remember { mutableStateOf(0L) }
 
     var shapeType by remember { mutableStateOf(ShapeType.RoundedRect) }
     val settingsMap = remember { mutableStateMapOf<ShapeType, ShapeSettings>() }
@@ -198,7 +194,6 @@ fun GlassPlaygroundContent() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(6f.dp)
                 ) {
-                    // Shape selector
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4f.dp)
@@ -220,7 +215,6 @@ fun GlassPlaygroundContent() {
                         }
                     }
 
-                    // Row 1: Pos X | Pos Y
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8f.dp)
@@ -237,7 +231,6 @@ fun GlassPlaygroundContent() {
                         }
                     }
 
-                    // Row 2: Width | Height
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8f.dp)
@@ -254,7 +247,6 @@ fun GlassPlaygroundContent() {
                         }
                     }
 
-                    // Row 3: Corner | Blur
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8f.dp)
@@ -271,7 +263,6 @@ fun GlassPlaygroundContent() {
                         }
                     }
 
-                    // Row 4: RefH | RefA
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8f.dp)
@@ -288,12 +279,10 @@ fun GlassPlaygroundContent() {
                         }
                     }
 
-                    // Row 5: Chromatic full width
                     MiniControl("Chromatic", currentSettings.chromaticAberration,
                         { v -> updateSettings { it.copy(chromaticAberration = v) } },
                         0f..1f, 0.05f, 0.001f, sheetBackdrop)
 
-                    // Bottom buttons
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4f.dp)
@@ -320,13 +309,12 @@ fun GlassPlaygroundContent() {
                         .align(Alignment.BottomCenter)
                 ) {
                     FlatBtn("🔼", Color(0xFFFF8D28)) {
-                        val now = timeSource.markNow()
-                        val first = lastTapMark
-                        if (first != null && (now - first) < 600.milliseconds) {
+                        val now = System.currentTimeMillis()
+                        if (now - lastTapMillis < 600L) {
                             isSheetExpanded = true
-                            lastTapMark = null
+                            lastTapMillis = 0L
                         } else {
-                            lastTapMark = now
+                            lastTapMillis = now
                         }
                     }
                 }
