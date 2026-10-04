@@ -14,9 +14,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -26,7 +24,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
@@ -37,7 +34,6 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.catalog.BackdropDemoScaffold
 import com.kyant.backdrop.catalog.Block
-import com.kyant.backdrop.catalog.components.LiquidButton
 import com.kyant.backdrop.catalog.components.LiquidSlider
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
@@ -56,7 +52,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 enum class ShapeType(val label: String) {
-    RoundedRect("Rounded"),
+    RoundedRect("Round"),
     Circle("Circle"),
     Square("Square"),
     Pill("Pill")
@@ -86,7 +82,6 @@ fun GlassPlaygroundContent() {
     val rotationAnimation = remember { Animatable(0f) }
 
     var isSheetExpanded by remember { mutableStateOf(true) }
-
     val timeSource = remember { TimeSource.Monotonic }
     var lastTapMark by remember { mutableStateOf<TimeMark?>(null) }
 
@@ -188,7 +183,7 @@ fun GlassPlaygroundContent() {
                         .navigationBarsPadding()
                         .drawBackdrop(
                             backdrop = backdrop,
-                            shape = { RoundedRectangle(32f.dp) },
+                            shape = { RoundedRectangle(28f.dp) },
                             effects = {
                                 vibrancy()
                                 blur(4f.dp.toPx())
@@ -198,106 +193,122 @@ fun GlassPlaygroundContent() {
                             exportedBackdrop = sheetBackdrop,
                             onDrawSurface = { drawRect(Color.White.copy(alpha = 0.5f)) }
                         )
-                        .padding(16f.dp)
+                        .padding(14f.dp)
                         .align(Alignment.BottomCenter),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8f.dp)
+                    verticalArrangement = Arrangement.spacedBy(6f.dp)
                 ) {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8f.dp)
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4f.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            ShapeType.values().forEach { type ->
-                                Box(Modifier.weight(1f)) {
-                                    Box(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedRectangle(12f.dp))
-                                            .background(
-                                                if (shapeType == type) Color(0xFFFF8D28)
-                                                else Color(0x55000000)
-                                            )
-                                            .clickable { shapeType = type }
-                                            .padding(vertical = 8f.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        BasicText(type.label, style = TextStyle(Color.White, 11f.sp))
-                                    }
-                                }
-                            }
-                        }
-
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8f.dp)
-                        ) {
-                            Box(Modifier.weight(1f)) {
-                                CompactControl("Pos X", currentSettings.posX,
-                                    { v -> updateSettings { it.copy(posX = v) } },
-                                    -500f..500f, 5f, 0.1f, ShapeSettings.Default.posX, sheetBackdrop)
-                            }
-                            Box(Modifier.weight(1f)) {
-                                CompactControl("Pos Y", currentSettings.posY,
-                                    { v -> updateSettings { it.copy(posY = v) } },
-                                    -500f..500f, 5f, 0.1f, ShapeSettings.Default.posY, sheetBackdrop)
-                            }
-                        }
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8f.dp)
-                        ) {
-                            Box(Modifier.weight(1f)) {
-                                CompactControl("Width", currentSettings.widthDp,
-                                    { v -> updateSettings { it.copy(widthDp = v) } },
-                                    32f..600f, 4f, 0.1f, ShapeSettings.Default.widthDp, sheetBackdrop)
-                            }
-                            Box(Modifier.weight(1f)) {
-                                CompactControl("Height", currentSettings.heightDp,
-                                    { v -> updateSettings { it.copy(heightDp = v) } },
-                                    32f..600f, 4f, 0.1f, ShapeSettings.Default.heightDp, sheetBackdrop)
-                            }
-                        }
-                        CompactControl("Corner radius", currentSettings.cornerRadiusFrac,
-                            { v -> updateSettings { it.copy(cornerRadiusFrac = v) } },
-                            0f..1f, 0.05f, 0.001f, ShapeSettings.Default.cornerRadiusFrac, sheetBackdrop)
-                        CompactControl("Blur radius", currentSettings.blurRadiusDp,
-                            { v -> updateSettings { it.copy(blurRadiusDp = v) } },
-                            0f..32f, 1f, 0.01f, ShapeSettings.Default.blurRadiusDp, sheetBackdrop)
-                        CompactControl("Refraction height", currentSettings.refractionHeightFrac,
-                            { v -> updateSettings { it.copy(refractionHeightFrac = v) } },
-                            0f..1f, 0.05f, 0.001f, ShapeSettings.Default.refractionHeightFrac, sheetBackdrop)
-                        CompactControl("Refraction amount", currentSettings.refractionAmountFrac,
-                            { v -> updateSettings { it.copy(refractionAmountFrac = v) } },
-                            0f..1f, 0.05f, 0.001f, ShapeSettings.Default.refractionAmountFrac, sheetBackdrop)
-                        CompactControl("Chromatic aberration", currentSettings.chromaticAberration,
-                            { v -> updateSettings { it.copy(chromaticAberration = v) } },
-                            0f..1f, 0.05f, 0.001f, ShapeSettings.Default.chromaticAberration, sheetBackdrop)
-                    }
-
+                    // Shape selector
                     Row(
                         Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6f.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(4f.dp)
+                    ) {
+                        ShapeType.values().forEach { type ->
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (shapeType == type) Color(0xFFFF8D28)
+                                        else Color(0x55000000)
+                                    )
+                                    .clickable { shapeType = type }
+                                    .padding(vertical = 8f.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BasicText(type.label, style = TextStyle(Color.White, 11f.sp))
+                            }
+                        }
+                    }
+
+                    // Row 1: Pos X | Pos Y
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8f.dp)
                     ) {
                         Box(Modifier.weight(1f)) {
-                            FlatButton("Hide", Color(0xFF666666)) { isSheetExpanded = false }
+                            MiniControl("Pos X", currentSettings.posX,
+                                { v -> updateSettings { it.copy(posX = v) } },
+                                -500f..500f, 5f, 0.1f, sheetBackdrop)
                         }
                         Box(Modifier.weight(1f)) {
-                            FlatButton("Image", Color(0xFF2196F3)) { /* TODO pick image */ }
+                            MiniControl("Pos Y", currentSettings.posY,
+                                { v -> updateSettings { it.copy(posY = v) } },
+                                -500f..500f, 5f, 0.1f, sheetBackdrop)
+                        }
+                    }
+
+                    // Row 2: Width | Height
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8f.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            MiniControl("Width", currentSettings.widthDp,
+                                { v -> updateSettings { it.copy(widthDp = v) } },
+                                32f..600f, 4f, 0.1f, sheetBackdrop)
                         }
                         Box(Modifier.weight(1f)) {
-                            FlatButton("Reset", Color(0xFFFF8D28)) { resetCurrentShape() }
+                            MiniControl("Height", currentSettings.heightDp,
+                                { v -> updateSettings { it.copy(heightDp = v) } },
+                                32f..600f, 4f, 0.1f, sheetBackdrop)
+                        }
+                    }
+
+                    // Row 3: Corner | Blur
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8f.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            MiniControl("Corner", currentSettings.cornerRadiusFrac,
+                                { v -> updateSettings { it.copy(cornerRadiusFrac = v) } },
+                                0f..1f, 0.05f, 0.001f, sheetBackdrop)
                         }
                         Box(Modifier.weight(1f)) {
-                            FlatButton("🔼", Color(0xFFFF8D28)) { isSheetExpanded = false }
+                            MiniControl("Blur", currentSettings.blurRadiusDp,
+                                { v -> updateSettings { it.copy(blurRadiusDp = v) } },
+                                0f..32f, 1f, 0.01f, sheetBackdrop)
+                        }
+                    }
+
+                    // Row 4: RefH | RefA
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8f.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            MiniControl("RefHeight", currentSettings.refractionHeightFrac,
+                                { v -> updateSettings { it.copy(refractionHeightFrac = v) } },
+                                0f..1f, 0.05f, 0.001f, sheetBackdrop)
+                        }
+                        Box(Modifier.weight(1f)) {
+                            MiniControl("RefAmt", currentSettings.refractionAmountFrac,
+                                { v -> updateSettings { it.copy(refractionAmountFrac = v) } },
+                                0f..1f, 0.05f, 0.001f, sheetBackdrop)
+                        }
+                    }
+
+                    // Row 5: Chromatic full width
+                    MiniControl("Chromatic", currentSettings.chromaticAberration,
+                        { v -> updateSettings { it.copy(chromaticAberration = v) } },
+                        0f..1f, 0.05f, 0.001f, sheetBackdrop)
+
+                    // Bottom buttons
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4f.dp)
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            FlatBtn("Hide", Color(0xFF555555)) { isSheetExpanded = false }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            FlatBtn("Image", Color(0xFF2196F3)) { /* pick image */ }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            FlatBtn("Reset", Color(0xFFFF8D28)) { resetCurrentShape() }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            FlatBtn("🔼", Color(0xFFFF8D28)) { isSheetExpanded = false }
                         }
                     }
                 }
@@ -308,7 +319,7 @@ fun GlassPlaygroundContent() {
                         .navigationBarsPadding()
                         .align(Alignment.BottomCenter)
                 ) {
-                    FlatButton("🔼", Color(0xFFFF8D28)) {
+                    FlatBtn("🔼", Color(0xFFFF8D28)) {
                         val now = timeSource.markNow()
                         val first = lastTapMark
                         if (first != null && (now - first) < 600.milliseconds) {
@@ -325,7 +336,7 @@ fun GlassPlaygroundContent() {
 }
 
 @Composable
-private fun FlatButton(
+private fun FlatBtn(
     label: String,
     color: Color,
     onClick: () -> Unit
@@ -333,7 +344,6 @@ private fun FlatButton(
     Box(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedRectangle(14f.dp))
             .background(color)
             .clickable { onClick() }
             .padding(vertical = 10f.dp),
@@ -344,14 +354,13 @@ private fun FlatButton(
 }
 
 @Composable
-private fun CompactControl(
+private fun MiniControl(
     label: String,
     value: Float,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
     step: Float,
     visibilityThreshold: Float,
-    defaultValue: Float,
     backdrop: Backdrop
 ) {
     Column(
@@ -360,18 +369,10 @@ private fun CompactControl(
     ) {
         Row(
             Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            BasicText(label, style = TextStyle(fontSize = 11f.sp))
-            BasicText(
-                formatValue(value),
-                modifier = Modifier
-                    .clip(RoundedRectangle(6f.dp))
-                    .clickable { onValueChange(defaultValue) }
-                    .padding(horizontal = 4f.dp, vertical = 1f.dp),
-                style = TextStyle(fontSize = 11f.sp)
-            )
+            BasicText(label, style = TextStyle(fontSize = 10f.sp))
+            BasicText(formatValue(value), style = TextStyle(fontSize = 10f.sp))
         }
         Row(
             Modifier.fillMaxWidth(),
@@ -380,13 +381,12 @@ private fun CompactControl(
         ) {
             Box(
                 Modifier
-                    .size(26f.dp)
-                    .clip(RoundedRectangle(13f.dp))
-                    .background(Color(0x55000000))
+                    .size(24f.dp)
+                    .background(Color(0x66000000))
                     .clickable { onValueChange((value - step).coerceIn(valueRange)) },
                 contentAlignment = Alignment.Center
             ) {
-                BasicText("−", style = TextStyle(Color.White, 16f.sp))
+                BasicText("−", style = TextStyle(Color.White, 14f.sp))
             }
             Box(Modifier.weight(1f)) {
                 LiquidSlider(
@@ -399,13 +399,12 @@ private fun CompactControl(
             }
             Box(
                 Modifier
-                    .size(26f.dp)
-                    .clip(RoundedRectangle(13f.dp))
-                    .background(Color(0x55000000))
+                    .size(24f.dp)
+                    .background(Color(0x66000000))
                     .clickable { onValueChange((value + step).coerceIn(valueRange)) },
                 contentAlignment = Alignment.Center
             ) {
-                BasicText("+", style = TextStyle(Color.White, 16f.sp))
+                BasicText("+", style = TextStyle(Color.White, 14f.sp))
             }
         }
     }
